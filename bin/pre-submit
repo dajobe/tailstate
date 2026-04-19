@@ -1,0 +1,70 @@
+#!/bin/sh
+# Python checks for this repo: Black, ruff, mypy, pytest via uv.
+set -eu
+
+UV="${UV:-uv}"
+
+mode="${1:-full}"
+
+staged_python_files() {
+  git diff --cached --name-only --diff-filter=ACMR |
+    grep -E '^(\./)?(src/tailstate/.*\.py|tests/.*\.py)$' || true
+}
+
+run_black_on_files() {
+  files="$1"
+  if [ -z "$files" ]; then
+    return 0
+  fi
+
+  echo "Running black on staged Python files..."
+  # shellcheck disable=SC2086
+  $UV run black $files
+
+  echo "Re-staging formatted Python files..."
+  echo "$files" | while IFS= read -r file; do
+    [ -n "$file" ] && git add "$file"
+  done
+}
+
+run_black_all() {
+  echo "Running black on Python sources..."
+  $UV run black src tests
+}
+
+run_ruff() {
+  echo "Running ruff on Python sources..."
+  $UV run ruff check src tests
+}
+
+run_mypy() {
+  echo "Running mypy on Python sources..."
+  $UV run mypy src tests
+}
+
+run_pytest() {
+  echo "Running pytest..."
+  $UV run pytest -q
+}
+
+case "$mode" in
+  staged)
+    files="$(staged_python_files)"
+    if [ -z "$files" ]; then
+      exit 0
+    fi
+    run_black_on_files "$files"
+    run_ruff
+    run_mypy
+    ;;
+  full)
+    run_black_all
+    run_ruff
+    run_mypy
+    run_pytest
+    ;;
+  *)
+    echo "Usage: $0 [full|staged]" >&2
+    exit 2
+    ;;
+esac

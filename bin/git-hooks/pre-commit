@@ -1,0 +1,6 @@
+#!/bin/sh
+# Installed into .git/hooks/pre-commit by: make install-git-hook
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+exec "$repo_root/bin/pre-submit" staged
