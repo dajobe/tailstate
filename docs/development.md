@@ -86,6 +86,34 @@ from the project root with plain `python` or `unittest`.
 - State is stored as JSON (UTF-8 text); safe to load from untrusted sources and
   stable across Python versions.
 
+## Releasing
+
+Version is a single source of truth in `src/tailstate/__init__.py`
+(`__version__`); the build (hatchling) reads it via `[tool.hatch.version]`.
+
+To cut a release:
+
+1. Bump `__version__` in `src/tailstate/__init__.py`.
+2. Commit (`release: vX.Y.Z`) and push to `main`.
+3. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+The `.github/workflows/publish.yml` workflow fires on tags matching `v*`: it
+runs `uv build`, publishes to PyPI via trusted publishing (OIDC, no stored API
+token), and creates a GitHub release with an auto-generated commit changelog
+between the previous tag and the new one.
+
+A local dry run:
+
+```bash
+uv build
+uvx twine check dist/*
+```
+
+PyPI trusted publishing needs a one-time configuration on PyPI: add a pending
+publisher for the `tailstate` project pointing at this repo and the `Publish to
+PyPI` workflow / `publish` job / `release` environment (no environment is
+required with the current workflow).
+
 ## Where To Look For Precise Semantics
 
 The docstrings in these modules are the authoritative behavior reference:

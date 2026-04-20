@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "tailstate"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Stateful incremental reading of rotated log files with persisted inode/seek position."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,6 +13,28 @@ license-files = ["LICENSE"]
 authors = [
     { name = "Dave Beckett", email = "dave@dajobe.org" },
 ]
+dependencies = []
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: POSIX :: BSD :: FreeBSD",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Systems Administration",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/dajobe/tailstate"
+Repository = "https://github.com/dajobe/tailstate"
+Issues = "https://github.com/dajobe/tailstate/issues"
+Changelog = "https://github.com/dajobe/tailstate/releases"
 
 [dependency-groups]
 dev = [
@@ -23,11 +45,11 @@ dev = [
     "ruff>=0.15.11",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.version]
+path = "src/tailstate/__init__.py"
 
-[tool.setuptools.package-data]
-tailstate = ["py.typed"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/tailstate"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
