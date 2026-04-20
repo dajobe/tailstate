@@ -5,7 +5,7 @@ User overview: project ``README.md``. API details: module and class docstrings
 in this package.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .fs_utils import ensure_dir, find_file_by_inode, tmp_file
 from .log4j_line_processor import Log4jLogLineProcessor

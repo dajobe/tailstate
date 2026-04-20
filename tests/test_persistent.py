@@ -56,3 +56,18 @@ class TestJsonPersistentObj(unittest.TestCase):
                 JsonPersistentObj[dict[str, int]](path),
             ):
                 pass
+
+    def test_timestamp_is_negative_when_file_not_on_disk(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "state.json"
+            with _DictStore(path) as po:
+                self.assertEqual(po.timestamp, -1.0)
+
+    def test_timestamp_matches_saved_file_mtime(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "state.json"
+            with _DictStore(path) as po:
+                po.obj = {"k": 1}
+            with _DictStore(path) as po2:
+                self.assertGreater(po2.timestamp, 0.0)
+                self.assertEqual(po2.timestamp, path.stat().st_mtime)

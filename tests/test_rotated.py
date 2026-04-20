@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tailstate import RotatedLogFileSavedState
 
@@ -77,6 +78,46 @@ class TestRotatedLogFileSavedState(unittest.TestCase):
                 for lf in state.logs():
                     lines.extend(lf.readlines())
                 self.assertEqual(lines, ["second1\n"])
+
+    def test_stale_inode_resets_seek_when_previous_file_removed(self):
+        """Stale inode after delete/recreate; new log read from offset 0."""
+        with tempfile.TemporaryDirectory() as td:
+            td_p = Path(td)
+            log_path = td_p / "app.log"
+            state_path = td_p / "state.json"
+            log_path.write_text("old\n", encoding="utf-8")
+
+            with RotatedLogFileSavedState(log_path, state_path) as state:
+                for lf in state.logs():
+                    lf.read()
+
+            log_path.unlink()
+            log_path.write_text("fresh\n", encoding="utf-8")
+
+            with RotatedLogFileSavedState(log_path, state_path) as state:
+                bodies = [lf.read() for lf in state.logs()]
+            self.assertEqual(bodies, ["fresh\n"])
+
+    def test_listdir_oserror_yields_no_log_streams(self):
+        """If the log directory cannot be listed, discovery returns no segments."""
+        with tempfile.TemporaryDirectory() as td:
+            td_p = Path(td)
+            log_path = td_p / "app.log"
+            state_path = td_p / "state.json"
+            log_path.write_text("x\n", encoding="utf-8")
+
+            real_iterdir = Path.iterdir
+
+            def guarded_iterdir(self: Path):
+                if self.resolve() == td_p.resolve():
+                    raise OSError("permission denied")
+                return real_iterdir(self)
+
+            with (
+                patch.object(Path, "iterdir", guarded_iterdir),
+                RotatedLogFileSavedState(log_path, state_path) as state,
+            ):
+                self.assertEqual(list(state.logs()), [])
 
     def test_updates_state_when_active_segment_is_renamed_mid_iteration(self):
         with tempfile.TemporaryDirectory() as td:
