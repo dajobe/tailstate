@@ -51,6 +51,17 @@ path = "src/tailstate/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/tailstate"]
 
+# Keep the sdist to files that are useful for building/verifying the package.
+# Hatch always includes the root .gitignore in sdists.
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "src/tailstate",
+    "tests",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
