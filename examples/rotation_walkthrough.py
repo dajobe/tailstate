@@ -35,15 +35,29 @@ def read_complete_lines(log_file: TextIO) -> list[str]:
 
     When the final line is incomplete, rewind to its starting offset so the
     saved seek position stays at the last fully processed line.
+
+    The README spells out the rule this implements: "If byte offsets matter,
+    use ``readline()`` or explicit ``tell()`` / ``seek()`` instead of
+    ``for line in f``." Iterating with ``for line in f`` would buffer
+    ahead and leave ``tell()`` pointing past data we haven't committed
+    to having processed, so partial lines could be silently dropped on
+    the next run. ``readline()`` plus ``tell()``/``seek()`` keeps the
+    saved offset honest.
     """
 
     lines: list[str] = []
     while True:
+        # Capture the offset *before* reading the line so we can rewind
+        # to it if the line turns out to be incomplete.
         pos = log_file.tell()
         line = log_file.readline()
         if not line:
+            # Empty string from ``readline`` means EOF, not a blank line
+            # (a blank line would be ``"\n"``).
             break
         if not line.endswith("\n"):
+            # Partial line: rewind so the next pass re-reads it from the
+            # start, presumably after more bytes have been appended.
             log_file.seek(pos)
             break
         lines.append(line.rstrip("\n"))
@@ -56,16 +70,23 @@ def run_pass(log_path: Path, state_path: Path) -> PhaseResult:
     files_read: list[str] = []
     lines_consumed: list[str] = []
 
+    # The context manager loads any prior state from ``state_path`` (or
+    # starts empty), runs the body, then saves the updated ``inode`` +
+    # ``seek`` on clean exit. ``state.logs()`` is a generator that opens
+    # each matching file in mtime order, seeks to the saved offset on
+    # the first one, and yields it for processing.
     with RotatedLogFileSavedState(log_path, state_path) as state:
         for log_file in state.logs():
             files_read.append(Path(log_file.name).name)
             lines_consumed.extend(read_complete_lines(log_file))
 
-    state = json.loads(state_path.read_text(encoding="utf-8"))
+    # Re-read the saved JSON from disk so the transcript can show what
+    # actually got persisted, not just what's in memory.
+    saved = json.loads(state_path.read_text(encoding="utf-8"))
     return PhaseResult(
         files_read=files_read,
         lines_consumed=lines_consumed,
-        state=state,
+        state=saved,
     )
 
 
@@ -102,6 +123,9 @@ def build_transcript() -> str:
         rotated_path = td_path / "app.log.1"
         state_path = td_path / "app-state.json"
 
+        # Phase 1: a fresh log with two complete lines and no prior
+        # state file. ``run_pass`` should read both lines and persist
+        # the inode plus the byte offset just past ``beta\n``.
         log_path.write_text("alpha\nbeta\n", encoding="utf-8")
         phase1 = run_pass(log_path, state_path)
         transcript.append(
@@ -112,6 +136,9 @@ def build_transcript() -> str:
             )
         )
 
+        # Phase 2: append one more complete line. The state file from
+        # phase 1 is still there, so ``RotatedLogFileSavedState`` should
+        # seek past ``alpha\nbeta\n`` and only emit ``gamma``.
         with log_path.open("a", encoding="utf-8", newline="") as log_file:
             log_file.write("gamma\n")
         phase2 = run_pass(log_path, state_path)
@@ -126,6 +153,10 @@ def build_transcript() -> str:
             )
         )
 
+        # Phase 3: append a line *without* a trailing newline, simulating
+        # a writer mid-flush. ``read_complete_lines`` rewinds past it so
+        # the saved offset must stay equal to the phase-2 offset; the
+        # partial bytes will be picked up on a later pass.
         with log_path.open("a", encoding="utf-8", newline="") as log_file:
             log_file.write("delta still buffering")
         phase3 = run_pass(log_path, state_path)
@@ -141,6 +172,23 @@ def build_transcript() -> str:
             )
         )
 
+        # Phase 4: simulate a logrotate-style rotation.
+        #   1. Move ``app.log`` aside to ``app.log.1`` (same inode).
+        #   2. Finish the deferred line by appending ``" now complete\n"``
+        #      to the rotated file.
+        #   3. Sleep briefly so the new ``app.log`` we're about to create
+        #      has a strictly later mtime than ``app.log.1``.
+        #      ``RotatedLogFileSavedState.logs()`` orders matches by mtime
+        #      with the saved-inode file first; without the sleep the two
+        #      files can share an mtime and ordering becomes filesystem-
+        #      dependent. A small real delay is the simplest fix in a demo.
+        #   4. Create a brand new ``app.log`` with one fresh line.
+        # The expected outcome: this pass opens ``app.log.1`` first
+        # (because the saved inode still lives there), reads
+        # ``"delta still buffering now complete"`` from where phase 3
+        # rewound to, then opens the new ``app.log`` and reads
+        # ``"epsilon after rotate"``. The persisted state ends up
+        # pointing at the new file's inode and offset.
         os.rename(log_path, rotated_path)
         with rotated_path.open("a", encoding="utf-8", newline="") as log_file:
             log_file.write(" now complete\n")
