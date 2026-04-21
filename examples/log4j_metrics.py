@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Minimal end-to-end demo: a tempfile log, JSON state, and counters.
+"""Minimal log4j metrics demo
 
-Run from the project root after ``pip install -e .``::
+Run from the project root with::
 
-    python -m tailstate.example_standalone
+    uv run python examples/log4j_metrics.py
 """
+
+from __future__ import annotations
 
 import json
 import logging
@@ -16,7 +18,7 @@ from tailstate import Log4jLogLineProcessor, RotatedLogFileSavedState
 
 
 class DemoErrorWarnCounter(Log4jLogLineProcessor):
-    """Counts ERROR and WARN lines in the log4j PatternLayout format."""
+    """Count WARN and ERROR lines in log4j PatternLayout output."""
 
     def get_metrics(self) -> dict[str, dict[str, int]]:
         return {"level": {"error": 0, "warn": 0}}

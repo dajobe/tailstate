@@ -61,6 +61,7 @@ from the project root with plain `python` or `unittest`.
 ## Package Layout
 
 - `src/tailstate/`: library source
+- `examples/`: runnable demos kept outside the importable package
 - `src/tailstate/__init__.py`: public re-exports and `__all__`
 - `src/tailstate/types.py`: `LogSavedState` and `PathLike`
 - `src/tailstate/fs_utils.py`: `find_file_by_inode`, `ensure_dir`, `tmp_file`
@@ -68,7 +69,8 @@ from the project root with plain `python` or `unittest`.
 - `src/tailstate/rotated.py`: `RotatedLogFileSavedState`
 - `src/tailstate/timed_processor.py`: `TimedLogProcessor`
 - `src/tailstate/log4j_line_processor.py`: `Log4jLogLineProcessor`
-- `src/tailstate/example_standalone.py`: runnable demo
+- `examples/rotation_walkthrough.py`: primary state/rotation walkthrough
+- `examples/log4j_metrics.py`: secondary log4j metrics example
 - `tests/`: unit tests
 - `bin/pre-submit`: black + mypy + pytest
 - `bin/git-hooks/pre-commit`: source for the local git hook

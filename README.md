@@ -69,8 +69,23 @@ python -m pytest
 
 ## Demo
 
+Primary walkthrough:
+
 ```bash
-python3 -m tailstate.example_standalone
+uv run python examples/rotation_walkthrough.py
+```
+
+This zero-argument demo shows:
+
+- initial reading from offset 0
+- append-only continuation using saved `inode` + `seek`
+- incomplete trailing-line deferral with explicit `readline()` / `seek()`
+- rotation-aware continuation from `app.log.1` into a fresh `app.log`
+
+Optional higher-level example:
+
+```bash
+uv run python examples/log4j_metrics.py
 ```
 
 ## Quickstart
